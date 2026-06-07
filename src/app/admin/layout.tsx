@@ -7,8 +7,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <main className="min-h-screen bg-stone-50">
       <header className="border-b border-stone-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <Link href="/admin/orders" className="text-lg font-semibold text-stone-950">
-            PrintFloww Admin
+          <Link href="/admin/orders" className="flex items-center gap-2">
+            <img
+              src="/logo.png"
+              alt="PrintFloww Logo"
+              className="h-8 w-auto object-contain"
+            />
+            <span className="rounded bg-stone-100 px-2 py-0.5 text-xs font-semibold tracking-wide text-stone-600 uppercase">
+              Admin
+            </span>
           </Link>
           <nav className="flex items-center gap-4 text-sm">
             <Link href="/admin/orders" className="text-stone-600 hover:text-teal-700">
