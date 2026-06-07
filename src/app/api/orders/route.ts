@@ -1,4 +1,4 @@
-import { files, orderOptions, orders, statusHistory } from "@/db/schema";
+import { files, fileOptions, orders, statusHistory } from "@/db/schema";
 import { db } from "@/db";
 import { calculatePageSplit, calculateQuote } from "@/lib/quote";
 import { getDefaultShop } from "@/lib/shop";
@@ -11,7 +11,7 @@ import { z } from "zod";
 const createOrderSchema = z.object({
   customer: customerSchema,
   files: z.array(fileMetadataSchema).min(1).max(10),
-  options: printOptionsSchema
+  options: z.array(printOptionsSchema).min(1).max(10)
 });
 
 export async function POST(request: Request) {
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   }
 
   const shop = await getDefaultShop();
-  const split = calculatePageSplit(parsed.data.options);
+  // page split is handled per-file during fileOptions insertion
   const quote = calculateQuote(parsed.data.options, shop);
   const trackingToken = createTrackingToken();
   const trackingTokenHash = hashTrackingToken(trackingToken);
@@ -42,6 +42,7 @@ export async function POST(request: Request) {
 
   await db.insert(files).values(
     parsed.data.files.map((file) => ({
+      id: file.id,
       orderId: order.id,
       originalName: file.originalName,
       storagePath: file.storagePath,
@@ -51,18 +52,23 @@ export async function POST(request: Request) {
     }))
   );
 
-  await db.insert(orderOptions).values({
-    orderId: order.id,
-    paperSize: parsed.data.options.paperSize,
-    copies: parsed.data.options.copies,
-    binding: parsed.data.options.binding,
-    lamination: parsed.data.options.lamination,
-    entireDocumentColor: parsed.data.options.entireDocumentColor,
-    colorPageRanges: parsed.data.options.colorPageRanges || null,
-    totalPages: split.totalPages,
-    colorPages: split.colorPages,
-    bwPages: split.bwPages
-  });
+  await db.insert(fileOptions).values(
+    parsed.data.options.map((opt) => {
+      const split = calculatePageSplit(opt);
+      return {
+        fileId: opt.fileId,
+        paperSize: opt.paperSize,
+        copies: opt.copies,
+        binding: opt.binding,
+        lamination: opt.lamination,
+        entireDocumentColor: opt.entireDocumentColor,
+        colorPageRanges: opt.colorPageRanges || null,
+        totalPages: split.totalPages,
+        colorPages: split.colorPages,
+        bwPages: split.bwPages
+      };
+    })
+  );
 
   await db.insert(statusHistory).values({
     orderId: order.id,

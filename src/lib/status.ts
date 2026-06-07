@@ -7,7 +7,7 @@ export const statusLabels: Record<OrderStatus, string> = {
   PRINTING: "Printing",
   READY_FOR_PICKUP: "Ready For Pickup",
   COMPLETED: "Completed",
-  PAYMENT_REJECTED: "Rejected"
+  PAYMENT_REJECTED: "Payment Failed"
 };
 
 export const adminStatuses: OrderStatus[] = [

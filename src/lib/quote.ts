@@ -10,6 +10,7 @@ export type PricingSettings = {
 };
 
 export type PrintOptionsInput = {
+  fileId: string;
   paperSize: "A4" | "A3";
   copies: number;
   binding: "NONE" | "SPIRAL";
@@ -63,28 +64,37 @@ export function calculatePageSplit(options: PrintOptionsInput) {
   };
 }
 
-export function calculateQuote(options: PrintOptionsInput, pricing: PricingSettings): QuoteSnapshot {
-  const split = calculatePageSplit(options);
-  const bwUnit = Number(options.paperSize === "A4" ? pricing.bwPriceA4 : pricing.bwPriceA3);
-  const colorUnit = Number(options.paperSize === "A4" ? pricing.colorPriceA4 : pricing.colorPriceA3);
-  const bwCost = split.bwPages * options.copies * bwUnit;
-  const colorCost = split.colorPages * options.copies * colorUnit;
-  const bindingCost = options.binding === "SPIRAL" ? Number(pricing.spiralBindingPrice) * options.copies : 0;
-  const laminationCost = options.lamination ? Number(pricing.laminationPrice) * options.copies : 0;
-  const total = bwCost + colorCost + bindingCost + laminationCost;
+export function calculateQuote(optionsArray: PrintOptionsInput[], pricing: PricingSettings): QuoteSnapshot {
+  let totalBwCost = 0;
+  let totalColorCost = 0;
+  let totalBindingCost = 0;
+  let totalLaminationCost = 0;
+
+  for (const options of optionsArray) {
+    const split = calculatePageSplit(options);
+    const bwUnit = Number(options.paperSize === "A4" ? pricing.bwPriceA4 : pricing.bwPriceA3);
+    const colorUnit = Number(options.paperSize === "A4" ? pricing.colorPriceA4 : pricing.colorPriceA3);
+    
+    totalBwCost += split.bwPages * options.copies * bwUnit;
+    totalColorCost += split.colorPages * options.copies * colorUnit;
+    totalBindingCost += options.binding === "SPIRAL" ? Number(pricing.spiralBindingPrice) * options.copies : 0;
+    totalLaminationCost += options.lamination ? Number(pricing.laminationPrice) * options.copies : 0;
+  }
+
+  const total = totalBwCost + totalColorCost + totalBindingCost + totalLaminationCost;
 
   return {
-    bwCost,
-    colorCost,
-    bindingCost,
-    laminationCost,
+    bwCost: totalBwCost,
+    colorCost: totalColorCost,
+    bindingCost: totalBindingCost,
+    laminationCost: totalLaminationCost,
     total,
     currency: "INR",
     lineItems: [
-      { label: "Black & White", amount: bwCost },
-      { label: "Color", amount: colorCost },
-      { label: "Binding", amount: bindingCost },
-      { label: "Lamination", amount: laminationCost }
+      { label: "Black & White", amount: totalBwCost },
+      { label: "Color", amount: totalColorCost },
+      { label: "Binding", amount: totalBindingCost },
+      { label: "Lamination", amount: totalLaminationCost }
     ]
   };
 }

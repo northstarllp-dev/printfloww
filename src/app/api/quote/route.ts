@@ -2,14 +2,32 @@ import { calculatePageSplit, calculateQuote } from "@/lib/quote";
 import { getDefaultShop } from "@/lib/shop";
 import { printOptionsSchema } from "@/lib/validation";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 export async function POST(request: Request) {
-  const parsed = printOptionsSchema.safeParse(await request.json());
+  const parsed = z.array(printOptionsSchema).safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const shop = await getDefaultShop();
-  const split = calculatePageSplit(parsed.data);
+  
+  // Calculate per-file split for the UI to display individual file summaries if needed
+  // Or just sum them up for the UI. The UI currently expects a single global split for now, 
+  // but let's return total split array or just total pages.
+  let totalPages = 0;
+  let colorPages = 0;
+  let bwPages = 0;
+
+  for (const options of parsed.data) {
+    const split = calculatePageSplit(options);
+    totalPages += split.totalPages;
+    colorPages += split.colorPages;
+    bwPages += split.bwPages;
+  }
+
   const quote = calculateQuote(parsed.data, shop);
 
-  return NextResponse.json({ split, quote });
+  return NextResponse.json({ 
+    split: { totalPages, colorPages, bwPages }, 
+    quote 
+  });
 }

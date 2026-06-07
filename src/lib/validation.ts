@@ -33,6 +33,7 @@ export const uploadIntentSchema = customerSchema.extend({
 });
 
 export const printOptionsSchema = z.object({
+  fileId: z.string().uuid(),
   paperSize: z.enum(["A4", "A3"]),
   copies: z.coerce.number().int().min(1).max(1000),
   binding: z.enum(["NONE", "SPIRAL"]),

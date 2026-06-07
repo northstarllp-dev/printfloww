@@ -86,9 +86,9 @@ export const files = pgTable(
   })
 );
 
-export const orderOptions = pgTable("order_options", {
+export const fileOptions = pgTable("file_options", {
   id: uuid("id").defaultRandom().primaryKey(),
-  orderId: uuid("order_id").references(() => orders.id, { onDelete: "cascade" }).notNull().unique(),
+  fileId: uuid("file_id").references(() => files.id, { onDelete: "cascade" }).notNull().unique(),
   paperSize: paperSizeEnum("paper_size").notNull(),
   copies: integer("copies").notNull(),
   binding: bindingEnum("binding").notNull(),

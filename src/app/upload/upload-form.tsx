@@ -56,7 +56,9 @@ export function UploadForm() {
     });
   };
 
-  async function onSubmit(formData: FormData) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
     setError(null);
     setIsUploading(true);
 
@@ -121,14 +123,13 @@ export function UploadForm() {
       router.push("/quote");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Upload failed.");
-    } finally {
       setIsUploading(false);
       setUploadProgress(null);
     }
   }
 
   return (
-    <form action={onSubmit} className="grid gap-5">
+    <form onSubmit={onSubmit} className="grid gap-5">
       <Card className="overflow-hidden border-stone-200/60 shadow-sm">
         <div className="bg-stone-50/80 border-b border-stone-100 p-4 sm:px-6">
           <h2 className="font-semibold text-stone-900">Customer Details</h2>
@@ -151,9 +152,8 @@ export function UploadForm() {
           <h2 className="font-semibold text-stone-900">Documents</h2>
         </div>
         <CardContent className="p-4 sm:p-6 grid gap-5">
-          <div 
-            className="relative overflow-hidden rounded-xl border-2 border-dashed border-stone-300 bg-stone-50/50 hover:bg-stone-50 transition-colors group cursor-pointer"
-            onClick={() => fileInputRef.current?.click()}
+          <label 
+            className="relative overflow-hidden rounded-xl border-2 border-dashed border-stone-300 bg-stone-50/50 hover:bg-stone-50 transition-colors group cursor-pointer block"
           >
             <input 
               ref={fileInputRef}
@@ -170,11 +170,20 @@ export function UploadForm() {
                 <Upload className="h-7 w-7" />
               </div>
               <div>
-                <p className="text-base font-medium text-stone-900">Click to browse or drag files here</p>
-                <p className="text-sm text-stone-500 mt-1">Maximum 10 files (50 MB total)</p>
+                {selectedFiles.length > 0 ? (
+                  <>
+                    <p className="text-base font-medium text-teal-700">{selectedFiles.length} file{selectedFiles.length === 1 ? '' : 's'} selected</p>
+                    <p className="text-sm text-stone-500 mt-1">Click to add more</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-base font-medium text-stone-900">Click to browse or drag files here</p>
+                    <p className="text-sm text-stone-500 mt-1">Maximum 10 files (50 MB total)</p>
+                  </>
+                )}
               </div>
             </div>
-          </div>
+          </label>
 
           <div className="flex justify-end my-2">
             <Button type="submit" disabled={isUploading || selectedFiles.length === 0} className="w-full sm:w-auto px-8 h-12 text-base font-medium shadow-md hover:shadow-lg transition-all bg-teal-700 hover:bg-teal-800 disabled:opacity-70">

@@ -1,32 +1,33 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { db } from "@/db";
-import { files, orderOptions, orders, statusHistory } from "@/db/schema";
+import { files, fileOptions, orders, statusHistory } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { allowedTransitions, statusLabels } from "@/lib/status";
 import { formatCurrency } from "@/lib/utils";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { transitionOrder } from "./actions";
 
 export default async function AdminOrderDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   await requireAdmin();
   const { id } = await params;
-  // OPTIMIZATION: Fetch all related order data concurrently
+  
   const [
     [order],
-    [options],
     uploadedFiles,
     history
   ] = await Promise.all([
     db.select().from(orders).where(eq(orders.id, id)).limit(1),
-    db.select().from(orderOptions).where(eq(orderOptions.orderId, id)).limit(1),
     db.select().from(files).where(eq(files.orderId, id)),
     db.select().from(statusHistory).where(eq(statusHistory.orderId, id)).orderBy(statusHistory.createdAt)
   ]);
 
   if (!order) notFound();
+
+  const fileIds = uploadedFiles.map((f) => f.id);
+  const optionsList = fileIds.length > 0 ? await db.select().from(fileOptions).where(inArray(fileOptions.fileId, fileIds)) : [];
 
   const supabase = createSupabaseAdminClient();
   const bucket = process.env.SUPABASE_STORAGE_BUCKET ?? "printfloww-private";
@@ -39,10 +40,12 @@ export default async function AdminOrderDetailsPage({ params }: { params: Promis
     );
     signedUrlsData = data;
   }
-  const filesWithUrls = uploadedFiles.map((file) => {
+  const filesWithData = uploadedFiles.map((file) => {
     const match = signedUrlsData?.find((s) => s.path === file.storagePath);
-    return { ...file, signedUrl: match?.signedUrl };
+    const opt = optionsList.find((o) => o.fileId === file.id);
+    return { ...file, signedUrl: match?.signedUrl, options: opt };
   });
+  
   const nextStatuses = allowedTransitions[order.status] ?? [];
 
   return (
@@ -53,45 +56,41 @@ export default async function AdminOrderDetailsPage({ params }: { params: Promis
       </div>
       <div className="grid items-start gap-5 lg:grid-cols-[1fr_360px]">
         <div className="grid gap-5">
-          <div className="grid sm:grid-cols-2 gap-5">
-            <Card className="h-full">
-              <CardHeader><h2 className="font-semibold">Customer Details</h2></CardHeader>
-              <CardContent className="grid gap-2 text-sm">
-                <p><strong>Name:</strong> {order.customerName}</p>
-                <p><strong>Phone:</strong> {order.customerPhone}</p>
-                <p><strong>Email:</strong> {order.customerEmail || "Not provided"}</p>
-                <p><strong>Amount:</strong> {formatCurrency(Number(order.amount))}</p>
-                <p><strong>Status:</strong> {statusLabels[order.status]}</p>
-              </CardContent>
-            </Card>
-
-            <Card className="h-full">
-              <CardHeader><h2 className="font-semibold">Print Options</h2></CardHeader>
-              <CardContent className="grid gap-2 text-sm">
-                {options ? (
-                  <>
-                    <p><strong>Paper:</strong> {options.paperSize}</p>
-                    <p><strong>Copies:</strong> {options.copies}</p>
-                    <p><strong>Binding:</strong> {options.binding === "SPIRAL" ? "Spiral" : "None"}</p>
-                    <p><strong>Lamination:</strong> {options.lamination ? "Yes" : "No"}</p>
-                    <p><strong>Color pages:</strong> {options.entireDocumentColor ? "Entire document" : options.colorPageRanges || "None"}</p>
-                    <p><strong>Split:</strong> {options.colorPages} color, {options.bwPages} black & white</p>
-                  </>
-                ) : null}
-              </CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardHeader><h2 className="font-semibold">Customer Details</h2></CardHeader>
+            <CardContent className="grid sm:grid-cols-2 gap-x-5 gap-y-2 text-sm">
+              <p><strong>Name:</strong> {order.customerName}</p>
+              <p><strong>Phone:</strong> {order.customerPhone}</p>
+              <p><strong>Email:</strong> {order.customerEmail || "Not provided"}</p>
+              <p><strong>Amount:</strong> {formatCurrency(Number(order.amount))}</p>
+              <p><strong>Status:</strong> {statusLabels[order.status]}</p>
+            </CardContent>
+          </Card>
 
           <Card>
-            <CardHeader><h2 className="font-semibold">Uploaded Files</h2></CardHeader>
-            <CardContent className="grid gap-3">
-              {filesWithUrls.map((file) => (
-                <div key={file.id} className="flex items-center justify-between gap-4 rounded-md border border-stone-200 p-3 text-sm">
-                  <div>
-                    <p className="font-medium text-stone-950">{file.originalName}</p>
-                    <p className="text-stone-500">{file.pageCount ?? "Unknown"} pages · {(file.sizeBytes / 1024 / 1024).toFixed(2)} MB</p>
+            <CardHeader><h2 className="font-semibold">Files & Print Options</h2></CardHeader>
+            <CardContent className="grid gap-5">
+              {filesWithData.map((file) => (
+                <div key={file.id} className="rounded-md border border-stone-200 overflow-hidden text-sm">
+                  <div className="bg-stone-50/50 p-3 flex items-center justify-between border-b border-stone-200">
+                    <div>
+                      <p className="font-medium text-stone-950">{file.originalName}</p>
+                      <p className="text-stone-500">{file.pageCount ?? "Unknown"} pages · {(file.sizeBytes / 1024 / 1024).toFixed(2)} MB</p>
+                    </div>
+                    {file.signedUrl ? <a className="font-medium text-teal-700 bg-white border border-stone-200 px-3 py-1.5 rounded shadow-sm hover:bg-stone-50" href={file.signedUrl} target="_blank" rel="noreferrer">View PDF</a> : null}
                   </div>
-                  {file.signedUrl ? <a className="font-medium text-teal-700" href={file.signedUrl}>Open</a> : null}
+                  {file.options ? (
+                    <div className="p-3 grid sm:grid-cols-2 gap-2 text-stone-700 bg-white">
+                      <p><strong>Paper:</strong> {file.options.paperSize}</p>
+                      <p><strong>Copies:</strong> {file.options.copies}</p>
+                      <p><strong>Binding:</strong> {file.options.binding === "SPIRAL" ? "Spiral Bound" : "None"}</p>
+                      <p><strong>Lamination:</strong> {file.options.lamination ? "Yes" : "No"}</p>
+                      <p><strong>Color Pages:</strong> {file.options.entireDocumentColor ? "Entire Document" : file.options.colorPageRanges || "None (B&W Only)"}</p>
+                      <p><strong>Page Split:</strong> {file.options.colorPages} color, {file.options.bwPages} B&W</p>
+                    </div>
+                  ) : (
+                    <div className="p-3 text-stone-500 italic">No print options found</div>
+                  )}
                 </div>
               ))}
             </CardContent>

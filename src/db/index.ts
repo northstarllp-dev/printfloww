@@ -6,8 +6,14 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is required");
 }
 
-const sql = postgres(process.env.DATABASE_URL, {
-  prepare: false
-});
+const globalForDb = globalThis as unknown as {
+  conn: postgres.Sql | undefined;
+};
 
-export const db = drizzle(sql, { schema });
+const conn = globalForDb.conn ?? postgres(process.env.DATABASE_URL, { prepare: false });
+
+if (process.env.NODE_ENV !== "production") {
+  globalForDb.conn = conn;
+}
+
+export const db = drizzle(conn, { schema });
