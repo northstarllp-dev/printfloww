@@ -113,7 +113,7 @@ export default async function AdminOrdersPage({
                     </p>
                     <p className="text-stone-600 flex items-center justify-between">
                       <span className="text-stone-400">Email</span> 
-                      <span className="font-medium text-stone-800 truncate max-w-[140px]" title={order.customerEmail}>{order.customerEmail}</span>
+                      <span className="font-medium text-stone-800 truncate max-w-[140px]" title={order.customerEmail ?? undefined}>{order.customerEmail}</span>
                     </p>
                     <p className="text-xs text-stone-400 mt-2 pt-2 border-t border-stone-100 border-dashed">
                       Placed: {order.createdAt.toLocaleString("en-IN")}
