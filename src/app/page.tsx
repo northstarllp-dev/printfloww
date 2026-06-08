@@ -1,33 +1,30 @@
 import { Button } from "@/components/ui/button";
 import { SiteShell } from "@/components/site-shell";
-import { FileUp, IndianRupee, ShieldCheck, ArrowRight } from "lucide-react";
+import { FileUp, ClipboardList, CheckCircle2, ArrowRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
-
-const features: Array<{ icon: LucideIcon; title: string; body: string; color: string; iconBg: string }> = [
+ 
+const steps: Array<{ icon: LucideIcon; title: string; body: string; iconBg: string }> = [
   {
-    icon: ShieldCheck,
-    title: "Private storage",
-    body: "Files stay in private Supabase Storage buckets, ensuring your sensitive documents never leave a secure environment.",
-    color: "text-[#003262]",
+    icon: FileUp,
+    title: "1. Upload Documents",
+    body: "Choose your print shop, enter your name/phone, and upload your PDF, DOCX, PPTX, or image files.",
     iconBg: "bg-[#003262]",
   },
   {
-    icon: IndianRupee,
-    title: "Instant quote",
-    body: "Pricing is pulled from admin-controlled shop settings so you always know the exact cost upfront.",
-    color: "text-[#238822]",
+    icon: ClipboardList,
+    title: "2. Configure & Pay",
+    body: "Select copies, paper size, colors, spiral binding, and pay securely online using UPI.",
     iconBg: "bg-[#238822]",
   },
   {
-    icon: FileUp,
-    title: "Online status",
-    body: "Track your order using a cryptographically random token — no login or account required.",
-    color: "text-[#562500]",
+    icon: CheckCircle2,
+    title: "3. Track & Collect",
+    body: "Watch the status live. When it shows 'Ready for Pickup', go to the counter and show your tracking code to collect.",
     iconBg: "bg-[#562500]",
   },
 ];
-
+ 
 export default function HomePage() {
   return (
     <SiteShell>
@@ -42,7 +39,7 @@ export default function HomePage() {
           className="absolute -bottom-8 -left-8 w-40 h-40 rounded-full opacity-10"
           style={{ background: "radial-gradient(circle, #ffffff 0%, transparent 70%)" }}
         />
-
+ 
         <div className="relative z-10">
           <img
             src="/DARKBG.png"
@@ -64,10 +61,13 @@ export default function HomePage() {
           </Link>
         </div>
       </div>
-
-      {/* Feature cards */}
+ 
+      {/* Procedure Steps */}
+      <div className="mb-4">
+        <h2 className="text-lg font-bold text-slate-900 mb-4 px-1">How it works: Print Pickup Procedure</h2>
+      </div>
       <div className="grid gap-3 sm:grid-cols-3">
-        {features.map(({ icon: Icon, title, body, iconBg }) => (
+        {steps.map(({ icon: Icon, title, body, iconBg }) => (
           <div
             key={title}
             className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow"
@@ -77,7 +77,7 @@ export default function HomePage() {
             >
               <Icon className="h-5 w-5 text-white" />
             </div>
-            <h3 className="font-bold text-slate-900 mb-1 text-sm">{title}</h3>
+            <h3 className="font-bold text-slate-900 mb-1.5 text-sm">{title}</h3>
             <p className="text-xs text-slate-500 leading-relaxed">{body}</p>
           </div>
         ))}

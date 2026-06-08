@@ -1,4 +1,4 @@
-import { files, fileOptions, orders, statusHistory } from "@/db/schema";
+import { files, fileOptions, orders, statusHistory, shops } from "@/db/schema";
 import { db } from "@/db";
 import { calculatePageSplit, calculateQuote } from "@/lib/quote";
 import { getDefaultShop } from "@/lib/shop";
@@ -6,11 +6,13 @@ import { createTrackingToken, hashTrackingToken } from "@/lib/tokens";
 import { fileMetadataSchema, printOptionsSchema, customerSchema } from "@/lib/validation";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
 
 const createOrderSchema = z.object({
   customer: customerSchema,
   files: z.array(fileMetadataSchema).min(1).max(10),
-  options: z.array(printOptionsSchema).min(1).max(10)
+  options: z.array(printOptionsSchema).min(1).max(10),
+  shopId: z.string().uuid().optional()
 });
 
 export async function POST(request: Request) {
@@ -19,7 +21,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const shop = await getDefaultShop();
+  let shop;
+  if (parsed.data.shopId) {
+    const [s] = await db.select().from(shops).where(eq(shops.id, parsed.data.shopId)).limit(1);
+    shop = s || await getDefaultShop();
+  } else {
+    shop = await getDefaultShop();
+  }
   // page split is handled per-file during fileOptions insertion
   const quote = calculateQuote(parsed.data.options, shop);
   const { prefix: trackingTokenPrefix, token: trackingToken } = createTrackingToken();

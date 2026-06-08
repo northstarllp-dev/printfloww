@@ -7,7 +7,7 @@ import { logout } from "@/app/admin/login/actions";
 
 const adminNavItems = [
   { href: "/admin/orders", label: "Orders", icon: LayoutDashboard },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
+  { href: "/admin/settings", label: "Settings", icon: Settings }
 ];
 
 export function AdminNav() {

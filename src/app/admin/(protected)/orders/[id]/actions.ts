@@ -11,13 +11,18 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function transitionOrder(formData: FormData) {
-  const { user } = await requireAdmin();
+  const { user, admin } = await requireAdmin();
+  const isOwner = admin.role === "OWNER";
   const orderId = String(formData.get("orderId") ?? "");
   const toStatus = String(formData.get("toStatus") ?? "") as OrderStatus;
   const note = String(formData.get("note") ?? "");
-
+ 
   const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
   if (!order || !canTransition(order.status, toStatus)) return;
+ 
+  if (!isOwner && order.shopId !== admin.shopId) {
+    throw new Error("Unauthorized. You can only manage orders from your own shop.");
+  }
 
   await db.update(orders).set({ status: toStatus, updatedAt: new Date() }).where(eq(orders.id, order.id));
   await db.insert(statusHistory).values({

@@ -11,7 +11,8 @@ import { notFound } from "next/navigation";
 import { transitionOrder } from "./actions";
 
 export default async function AdminOrderDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
+  const { admin } = await requireAdmin();
+  const isOwner = admin.role === "OWNER";
   const { id } = await params;
   
   const [
@@ -23,8 +24,12 @@ export default async function AdminOrderDetailsPage({ params }: { params: Promis
     db.select().from(files).where(eq(files.orderId, id)),
     db.select().from(statusHistory).where(eq(statusHistory.orderId, id)).orderBy(statusHistory.createdAt)
   ]);
-
+ 
   if (!order) notFound();
+ 
+  if (!isOwner && order.shopId !== admin.shopId) {
+    notFound();
+  }
 
   const fileIds = uploadedFiles.map((f) => f.id);
   const optionsList = fileIds.length > 0 ? await db.select().from(fileOptions).where(inArray(fileOptions.fileId, fileIds)) : [];

@@ -1,7 +1,11 @@
 import { AdminNav } from "@/components/admin-nav";
+import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  // Ensures only SHOPKEEPER role can access /admin — platform owners are redirected to /platform/login
+  await requireAdmin();
+
   return (
     <main className="min-h-screen bg-[#f0f4f8]">
       {/* Navy top header */}

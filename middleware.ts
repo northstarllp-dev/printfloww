@@ -25,10 +25,31 @@ export async function middleware(request: NextRequest) {
     data: { user }
   } = await supabase.auth.getUser();
 
-  if (request.nextUrl.pathname.startsWith("/admin") && request.nextUrl.pathname !== "/admin/login" && !user) {
+  const { pathname } = request.nextUrl;
+
+  // Protect /admin/* routes (shopkeeper area)
+  if (
+    pathname.startsWith("/admin") &&
+    pathname !== "/admin/login" &&
+    !pathname.startsWith("/admin/login") &&
+    !user
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = "/admin/login";
-    url.searchParams.set("next", request.nextUrl.pathname);
+    url.searchParams.set("next", pathname);
+    return NextResponse.redirect(url);
+  }
+
+  // Protect /platform/* routes (platform owner area)
+  if (
+    pathname.startsWith("/platform") &&
+    pathname !== "/platform/login" &&
+    !pathname.startsWith("/platform/login") &&
+    !user
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/platform/login";
+    url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
 
@@ -36,5 +57,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"]
+  matcher: ["/admin/:path*", "/platform/:path*"]
 };

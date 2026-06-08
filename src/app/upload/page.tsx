@@ -2,8 +2,14 @@ import { SiteShell } from "@/components/site-shell";
 import { UploadForm } from "./upload-form";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { db } from "@/db";
+import { shops } from "@/db/schema";
 
-export default function UploadPage() {
+export default async function UploadPage(props: { searchParams: Promise<{ shopId?: string }> }) {
+  const searchParams = await props.searchParams;
+  const defaultShopId = searchParams.shopId || "";
+  const allShops = await db.select({ id: shops.id, name: shops.name }).from(shops);
+
   return (
     <SiteShell hideNav>
       <div className="grid gap-5 max-w-3xl mx-auto">
@@ -24,7 +30,7 @@ export default function UploadPage() {
           </p>
         </div>
 
-        <UploadForm />
+        <UploadForm shops={allShops} defaultShopId={defaultShopId} />
       </div>
     </SiteShell>
   );

@@ -1,15 +1,16 @@
 "use client";
-
+ 
 import { Field } from "@/components/field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { allowedMimeTypes } from "@/lib/file-rules";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { FileText, Upload, File as FileIcon, Loader2, X, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-
+ 
 type UploadedFile = {
   id: string;
   originalName: string;
@@ -18,7 +19,7 @@ type UploadedFile = {
   sizeBytes: number;
   pageCount: number | null;
 };
-
+ 
 function estimatePageCount(file: File, text?: string) {
   if (file.type.startsWith("image/")) return 1;
   if (file.type === "application/pdf" && text) {
@@ -27,15 +28,15 @@ function estimatePageCount(file: File, text?: string) {
   }
   return null;
 }
-
-export function UploadForm() {
+ 
+export function UploadForm({ shops, defaultShopId }: { shops: Array<{ id: string; name: string }>; defaultShopId?: string }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+ 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFilesArray = Array.from(e.target.files);
@@ -56,12 +57,12 @@ export function UploadForm() {
       });
     }
   };
-
+ 
   const removeFile = (index: number) => {
     setSelectedFiles((prev) => {
       const newFiles = [...prev];
       newFiles.splice(index, 1);
-
+ 
       if (fileInputRef.current) {
         const dt = new DataTransfer();
         newFiles.forEach((file) => dt.items.add(file));
@@ -70,17 +71,17 @@ export function UploadForm() {
       return newFiles;
     });
   };
-
+ 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     setError(null);
     setIsUploading(true);
-
+ 
     try {
       const files = formData.getAll("files").filter((entry): entry is File => entry instanceof File && entry.size > 0);
       if (files.length < 1 || files.length > 10) throw new Error("Upload between 1 and 10 files.");
-
+ 
       const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
       if (totalBytes > 50 * 1024 * 1024) throw new Error("Total upload size must be 50 MB or less.");
       for (const file of files) {
@@ -88,13 +89,14 @@ export function UploadForm() {
           throw new Error(`${file.name} is not a supported file type.`);
         }
       }
-
+ 
       const customer = {
         name: String(formData.get("name") ?? ""),
         phone: String(formData.get("phone") ?? ""),
         email: String(formData.get("email") ?? ""),
       };
-
+      const shopId = String(formData.get("shopId") ?? "");
+ 
       const intentResponse = await fetch("/api/uploads/intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -103,14 +105,14 @@ export function UploadForm() {
           files: files.map((file) => ({ name: file.name, mimeType: file.type, sizeBytes: file.size })),
         }),
       });
-
+ 
       if (!intentResponse.ok) throw new Error("Could not prepare private uploads.");
       const intent = await intentResponse.json();
       const supabase = createSupabaseBrowserClient();
-
+ 
       const uploaded: UploadedFile[] = [];
       setUploadProgress({ current: 0, total: files.length });
-
+ 
       for (let index = 0; index < files.length; index += 1) {
         setUploadProgress({ current: index + 1, total: files.length });
         const file = files[index];
@@ -118,12 +120,12 @@ export function UploadForm() {
         const { error: uploadError } = await supabase.storage
           .from(intent.bucket)
           .uploadToSignedUrl(signed.storagePath, signed.token, file, { contentType: file.type });
-
+ 
         if (uploadError) throw new Error(uploadError.message);
-
+ 
         let text: string | undefined;
         if (file.type === "application/pdf") text = await file.text();
-
+ 
         uploaded.push({
           id: signed.id,
           originalName: signed.originalName,
@@ -133,8 +135,8 @@ export function UploadForm() {
           pageCount: estimatePageCount(file, text),
         });
       }
-
-      sessionStorage.setItem("printfloww:draft", JSON.stringify({ customer, files: uploaded }));
+ 
+      sessionStorage.setItem("printfloww:draft", JSON.stringify({ customer, files: uploaded, shopId }));
       router.push("/quote");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Upload failed.");
@@ -142,7 +144,7 @@ export function UploadForm() {
       setUploadProgress(null);
     }
   }
-
+ 
   return (
     <form onSubmit={onSubmit} className="grid gap-4">
       {/* Customer details */}
@@ -151,6 +153,17 @@ export function UploadForm() {
           <h2 className="font-bold text-white text-sm">Customer Details</h2>
         </div>
         <CardContent className="p-4 sm:p-5 grid gap-4 sm:grid-cols-3">
+          {shops && shops.length > 0 && (
+            <Field label="Select Print Shop" className="sm:col-span-3">
+              <Select name="shopId" required defaultValue={defaultShopId}>
+                {shops.map((shop) => (
+                  <option key={shop.id} value={shop.id}>
+                    {shop.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
           <Field label="Full Name">
             <Input name="name" required minLength={2} placeholder="Your name" />
           </Field>

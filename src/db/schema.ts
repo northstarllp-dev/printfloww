@@ -30,6 +30,7 @@ export const shops = pgTable("shops", {
   name: text("name").notNull(),
   upiId: text("upi_id").notNull(),
   email: text("email"),
+  shopkeeperName: text("shopkeeper_name"),
   bwPriceA4: numeric("bw_price_a4", { precision: 10, scale: 2 }).notNull().default("2.00"),
   bwPriceA3: numeric("bw_price_a3", { precision: 10, scale: 2 }).notNull().default("4.00"),
   colorPriceA4: numeric("color_price_a4", { precision: 10, scale: 2 }).notNull().default("10.00"),
@@ -42,8 +43,9 @@ export const shops = pgTable("shops", {
 
 export const adminUsers = pgTable("admin_users", {
   id: uuid("id").primaryKey(),
-  shopId: uuid("shop_id").references(() => shops.id, { onDelete: "cascade" }).notNull(),
+  shopId: uuid("shop_id").references(() => shops.id, { onDelete: "cascade" }),
   email: text("email").notNull().unique(),
+  role: text("role").notNull().default("SHOPKEEPER"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
 });
 

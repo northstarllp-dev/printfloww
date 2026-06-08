@@ -11,6 +11,9 @@ export async function updateSettings(formData: FormData) {
   const { admin } = await requireAdmin();
   const parsed = shopSettingsSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return;
+  if (!admin.shopId) {
+    throw new Error("Unauthorized. Only shopkeepers can update shop settings.");
+  }
 
   await db
     .update(shops)

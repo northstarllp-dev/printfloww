@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 type Draft = {
   customer: { name: string; phone: string; email?: string };
   files: Array<{ id: string; originalName: string; storagePath: string; mimeType: string; sizeBytes: number; pageCount: number | null }>;
+  shopId?: string;
 };
 
 type FileOptions = {
@@ -79,7 +80,7 @@ export function QuoteForm() {
     });
 
     const controller = new AbortController();
-    fetch("/api/quote", {
+    fetch(`/api/quote?shopId=${draft.shopId || ""}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: controller.signal,

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { SiteShell } from "@/components/site-shell";
 import { db } from "@/db";
-import { orders, statusHistory } from "@/db/schema";
+import { orders, statusHistory, shops } from "@/db/schema";
 import { statusLabels } from "@/lib/status";
 import { hashTrackingToken } from "@/lib/tokens";
 import { formatCurrency } from "@/lib/utils";
@@ -21,8 +21,18 @@ const visibleStatuses = [
 
 export default async function TrackPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const [order] = await db.select().from(orders).where(eq(orders.trackingTokenHash, hashTrackingToken(token))).limit(1);
-  if (!order) notFound();
+  const [orderWithShop] = await db
+    .select({
+      order: orders,
+      shop: shops
+    })
+    .from(orders)
+    .innerJoin(shops, eq(orders.shopId, shops.id))
+    .where(eq(orders.trackingTokenHash, hashTrackingToken(token)))
+    .limit(1);
+
+  if (!orderWithShop) notFound();
+  const { order, shop } = orderWithShop;
 
   const history = await db
     .select()
@@ -80,6 +90,7 @@ export default async function TrackPage({ params }: { params: Promise<{ token: s
             Order PF-{order.orderNumber} &middot; Tracking Code: <span className="font-mono">{order.trackingTokenPrefix}</span> &middot; {formatCurrency(Number(order.amount))}
           </p>
         </div>
+
         <Card>
           <CardHeader>
             <p className="font-semibold text-stone-950">Current status: {statusLabels[order.status]}</p>
@@ -94,6 +105,35 @@ export default async function TrackPage({ params }: { params: Promise<{ token: s
                 </div>
               );
             })}
+          </CardContent>
+        </Card>
+
+        <Card className="border-stone-200/60 shadow-sm">
+          <CardHeader>
+            <p className="font-semibold text-stone-950">Pickup &amp; Shop Information</p>
+          </CardHeader>
+          <CardContent className="grid gap-4 text-sm text-stone-700">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Print Shop</p>
+                <p className="font-bold text-stone-900 mt-0.5">{shop.name}</p>
+                {shop.shopkeeperName && (
+                  <p className="text-stone-600 mt-0.5">Contact: {shop.shopkeeperName}</p>
+                )}
+                {shop.email && (
+                  <p className="text-stone-600 mt-0.5">Email: {shop.email}</p>
+                )}
+                <p className="text-stone-600 mt-0.5">UPI ID: {shop.upiId}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Collection Steps</p>
+                <div className="mt-0.5 text-stone-600 space-y-1.5">
+                  <p>1. Track the status on this page. When it shows <strong className="text-teal-700">Ready for Pickup</strong>, head to the shop.</p>
+                  <p>2. Provide the Tracking Code <strong className="font-mono bg-stone-100 px-1 py-0.5 rounded text-stone-900">{order.trackingTokenPrefix}</strong> or your Order ID <strong className="text-stone-900">PF-{order.orderNumber}</strong> at the counter.</p>
+                  <p>3. If you entered an email, you can show the email receipt to the shopkeeper.</p>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

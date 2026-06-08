@@ -8,10 +8,11 @@ import { requireAdmin } from "@/lib/auth";
 import { eq } from "drizzle-orm";
 import { Save, IndianRupee, Store, Layers } from "lucide-react";
 import { updateSettings } from "./actions";
-
+import { ShopShare } from "@/components/shop-share";
+ 
 export default async function AdminSettingsPage() {
   const { admin } = await requireAdmin();
-  const [shop] = await db.select().from(shops).where(eq(shops.id, admin.shopId)).limit(1);
+  const [shop] = await db.select().from(shops).where(eq(shops.id, admin.shopId!)).limit(1);
 
   return (
     <div className="grid gap-5 max-w-3xl">
@@ -21,6 +22,8 @@ export default async function AdminSettingsPage() {
           Configure shop UPI details and pricing used by the quote engine.
         </p>
       </div>
+
+      <ShopShare shopId={admin.shopId!} shopName={shop?.name || "Shop"} />
 
       <form action={updateSettings} className="grid gap-4">
         {/* Shop info */}

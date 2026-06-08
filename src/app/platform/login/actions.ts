@@ -1,7 +1,7 @@
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getAdminSession } from "@/lib/auth";
+import { getPlatformSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
 const attempts = new Map<string, { count: number; resetAt: number }>();
@@ -17,7 +17,7 @@ function checkRateLimit(key: string) {
   current.count += 1;
 }
 
-export async function login(_: { error?: string } | null, formData: FormData) {
+export async function platformLogin(_: { error?: string } | null, formData: FormData) {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
 
@@ -27,23 +27,21 @@ export async function login(_: { error?: string } | null, formData: FormData) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: "Invalid email or password" };
 
-    // Check role — Super Admins must use /platform/login
-    const session = await getAdminSession();
-    if (session?.admin.role === "OWNER") {
+    // Verify this account has the OWNER role
+    const session = await getPlatformSession();
+    if (!session) {
       await supabase.auth.signOut();
-      return {
-        error: "Super Admins must sign in at /platform/login"
-      };
+      return { error: "This account is not authorized as a Super Admin. Shopkeepers should use /admin/login." };
     }
   } catch (caught) {
     return { error: caught instanceof Error ? caught.message : "Login failed" };
   }
 
-  redirect("/admin/orders");
+  redirect("/platform/dashboard");
 }
 
-export async function logout() {
+export async function platformLogout() {
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();
-  redirect("/admin/login");
+  redirect("/platform/login");
 }

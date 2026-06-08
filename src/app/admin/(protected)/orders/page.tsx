@@ -1,39 +1,65 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { db } from "@/db";
-import { orders } from "@/db/schema";
+import { orders, shops } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { adminStatuses, statusLabels } from "@/lib/status";
 import { formatCurrency } from "@/lib/utils";
-import { desc, eq, sql, inArray } from "drizzle-orm";
+import { desc, eq, sql, inArray, and } from "drizzle-orm";
 import Link from "next/link";
 import { transitionOrder } from "./[id]/actions";
 import { RealtimeOrders } from "@/components/realtime-orders";
-
+ 
 export default async function AdminOrdersPage({
   searchParams
 }: {
   searchParams: Promise<{ status?: string; page?: string }>;
 }) {
-  await requireAdmin();
+  const { admin } = await requireAdmin();
+  const isOwner = admin.role === "OWNER";
+ 
   const { status, page } = await searchParams;
   const validStatus = adminStatuses.find((item) => item === status);
   
   const pageNum = Math.max(1, parseInt(page || "1", 10));
   const pageSize = 20;
-
+ 
+  const conditions = [];
+  if (validStatus) {
+    conditions.push(eq(orders.status, validStatus));
+  } else {
+    conditions.push(inArray(orders.status, adminStatuses));
+  }
+ 
+  if (!isOwner && admin.shopId) {
+    conditions.push(eq(orders.shopId, admin.shopId));
+  }
+ 
   // OPTIMIZATION: Run both queries concurrently to cut database latency in half
   const [rows, countStats] = await Promise.all([
     db
-      .select()
+      .select({
+        id: orders.id,
+        orderNumber: orders.orderNumber,
+        customerName: orders.customerName,
+        customerPhone: orders.customerPhone,
+        customerEmail: orders.customerEmail,
+        trackingTokenPrefix: orders.trackingTokenPrefix,
+        amount: orders.amount,
+        status: orders.status,
+        createdAt: orders.createdAt,
+        shopName: shops.name
+      })
       .from(orders)
-      .where(validStatus ? eq(orders.status, validStatus) : inArray(orders.status, adminStatuses))
+      .innerJoin(shops, eq(orders.shopId, shops.id))
+      .where(and(...conditions))
       .orderBy(desc(orders.createdAt))
       .limit(pageSize)
       .offset((pageNum - 1) * pageSize),
     db
       .select({ status: orders.status, count: sql<number>`cast(count(${orders.id}) as int)` })
       .from(orders)
+      .where(isOwner ? undefined : eq(orders.shopId, admin.shopId || ""))
       .groupBy(orders.status)
   ]);
 
@@ -92,7 +118,14 @@ export default async function AdminOrdersPage({
                   <CardHeader className="pb-3 z-10 pointer-events-none bg-gradient-to-b from-stone-50/50 to-transparent">
                     <div className="flex justify-between items-start">
                       <div>
-                        <CardTitle className="text-base text-teal-700 group-hover:text-teal-600 transition-colors">PF-{order.orderNumber}</CardTitle>
+                        <CardTitle className="text-base text-teal-700 group-hover:text-teal-600 transition-colors flex items-center gap-2">
+                          <span>PF-{order.orderNumber}</span>
+                          {isOwner && (
+                            <span className="text-[10px] font-normal text-stone-500 bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded">
+                              {order.shopName}
+                            </span>
+                          )}
+                        </CardTitle>
                         <CardDescription className="mt-1 font-medium text-stone-900">{order.customerName}</CardDescription>
                       </div>
                       <span className="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-[10px] font-bold text-stone-700 uppercase tracking-wider border border-stone-200/50 shadow-sm">
