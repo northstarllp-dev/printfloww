@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, CreditCard } from "lucide-react";
 
 export function CheckoutButton({ orderId, token }: { orderId: string; token: string }) {
   const [loading, setLoading] = useState(false);
@@ -17,7 +17,7 @@ export function CheckoutButton({ orderId, token }: { orderId: string; token: str
       });
 
       const data = await res.json();
-      
+
       if (res.ok && data.redirectUrl) {
         window.location.href = data.redirectUrl;
       } else {
@@ -32,18 +32,23 @@ export function CheckoutButton({ orderId, token }: { orderId: string; token: str
   };
 
   return (
-    <Button 
-      className="w-full sm:w-auto min-w-[200px]" 
+    <Button
+      variant="secondary"
+      size="lg"
+      className="w-full"
       onClick={handlePaymentInitiation}
       disabled={loading}
     >
       {loading ? (
         <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Redirecting...
+          <Loader2 className="h-5 w-5 animate-spin" />
+          Redirecting…
         </>
       ) : (
-        "Pay Securely via PhonePe"
+        <>
+          <CreditCard className="h-5 w-5" />
+          Pay Securely via PhonePe
+        </>
       )}
     </Button>
   );

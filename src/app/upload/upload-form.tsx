@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { allowedMimeTypes } from "@/lib/file-rules";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { FileText, Upload, X, File as FileIcon, Loader2 } from "lucide-react";
+import { FileText, Upload, File as FileIcon, Loader2, X, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
@@ -46,7 +46,6 @@ export function UploadForm() {
     setSelectedFiles((prev) => {
       const newFiles = [...prev];
       newFiles.splice(index, 1);
-      
       if (fileInputRef.current) {
         const dt = new DataTransfer();
         newFiles.forEach((file) => dt.items.add(file));
@@ -77,7 +76,7 @@ export function UploadForm() {
       const customer = {
         name: String(formData.get("name") ?? ""),
         phone: String(formData.get("phone") ?? ""),
-        email: String(formData.get("email") ?? "")
+        email: String(formData.get("email") ?? ""),
       };
 
       const intentResponse = await fetch("/api/uploads/intent", {
@@ -85,8 +84,8 @@ export function UploadForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...customer,
-          files: files.map((file) => ({ name: file.name, mimeType: file.type, sizeBytes: file.size }))
-        })
+          files: files.map((file) => ({ name: file.name, mimeType: file.type, sizeBytes: file.size })),
+        }),
       });
 
       if (!intentResponse.ok) throw new Error("Could not prepare private uploads.");
@@ -95,7 +94,7 @@ export function UploadForm() {
 
       const uploaded: UploadedFile[] = [];
       setUploadProgress({ current: 0, total: files.length });
-      
+
       for (let index = 0; index < files.length; index += 1) {
         setUploadProgress({ current: index + 1, total: files.length });
         const file = files[index];
@@ -115,7 +114,7 @@ export function UploadForm() {
           storagePath: signed.storagePath,
           mimeType: signed.mimeType,
           sizeBytes: signed.sizeBytes,
-          pageCount: estimatePageCount(file, text)
+          pageCount: estimatePageCount(file, text),
         });
       }
 
@@ -129,113 +128,137 @@ export function UploadForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-5">
-      <Card className="overflow-hidden border-stone-200/60 shadow-sm">
-        <div className="bg-stone-50/80 border-b border-stone-100 p-4 sm:px-6">
-          <h2 className="font-semibold text-stone-900">Customer Details</h2>
+    <form onSubmit={onSubmit} className="grid gap-4">
+      {/* Customer details */}
+      <Card>
+        <div className="bg-[#003262] rounded-t-xl px-5 py-3.5">
+          <h2 className="font-bold text-white text-sm">Customer Details</h2>
         </div>
-        <CardContent className="p-4 sm:p-6 grid gap-5 md:grid-cols-3">
-          <Field label="Name">
-            <Input name="name" required minLength={2} className="bg-white" />
+        <CardContent className="p-4 sm:p-5 grid gap-4 sm:grid-cols-3">
+          <Field label="Full Name">
+            <Input name="name" required minLength={2} placeholder="Your name" />
           </Field>
           <Field label="Phone Number">
-            <Input name="phone" required pattern="[6-9][0-9]{9}" className="bg-white" />
+            <Input name="phone" required pattern="[6-9][0-9]{9}" placeholder="10-digit mobile" />
           </Field>
-          <Field label="Email">
-            <Input name="email" type="email" className="bg-white" />
+          <Field label="Email (optional)">
+            <Input name="email" type="email" placeholder="you@example.com" />
           </Field>
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-stone-200/60 shadow-sm">
-        <div className="bg-stone-50/80 border-b border-stone-100 p-4 sm:px-6">
-          <h2 className="font-semibold text-stone-900">Documents</h2>
+      {/* Documents */}
+      <Card>
+        <div className="bg-[#003262] rounded-t-xl px-5 py-3.5">
+          <h2 className="font-bold text-white text-sm">Documents</h2>
         </div>
-        <CardContent className="p-4 sm:p-6 grid gap-5">
-          <label 
-            className="relative overflow-hidden rounded-xl border-2 border-dashed border-stone-300 bg-stone-50/50 hover:bg-stone-50 transition-colors group cursor-pointer block"
-          >
-            <input 
+        <CardContent className="p-4 sm:p-5 grid gap-4">
+          {/* Drop zone */}
+          <label className="relative overflow-hidden rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 hover:border-[#003262]/50 hover:bg-slate-100/60 transition-all group cursor-pointer block">
+            <input
               ref={fileInputRef}
               onChange={handleFileChange}
-              name="files" 
-              type="file" 
-              multiple 
-              required 
-              accept=".pdf,.docx,.pptx,.jpg,.jpeg,.png" 
+              name="files"
+              type="file"
+              multiple
+              required
+              accept=".pdf,.docx,.pptx,.jpg,.jpeg,.png"
               className="hidden"
             />
-            <div className="p-10 flex flex-col items-center justify-center text-center gap-4">
-              <div className="h-16 w-16 rounded-full bg-teal-50 flex items-center justify-center text-teal-600 group-hover:scale-110 transition-transform shadow-sm ring-1 ring-teal-100">
-                <Upload className="h-7 w-7" />
+            <div className="p-8 flex flex-col items-center justify-center text-center gap-3">
+              <div className="h-14 w-14 rounded-full bg-[#003262]/10 flex items-center justify-center text-[#003262] group-hover:scale-110 transition-transform">
+                <Upload className="h-6 w-6" />
               </div>
               <div>
                 {selectedFiles.length > 0 ? (
                   <>
-                    <p className="text-base font-medium text-teal-700">{selectedFiles.length} file{selectedFiles.length === 1 ? '' : 's'} selected</p>
-                    <p className="text-sm text-stone-500 mt-1">Click to add more</p>
+                    <p className="text-sm font-bold text-[#238822]">
+                      {selectedFiles.length} file{selectedFiles.length === 1 ? "" : "s"} selected
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">Tap to add more files</p>
                   </>
                 ) : (
                   <>
-                    <p className="text-base font-medium text-stone-900">Click to browse or drag files here</p>
-                    <p className="text-sm text-stone-500 mt-1">Maximum 10 files (50 MB total)</p>
+                    <p className="text-sm font-bold text-slate-800">Tap to browse or drag files here</p>
+                    <p className="text-xs text-slate-500 mt-0.5">PDF, DOCX, PPTX, JPG, PNG · Max 10 files · 50 MB</p>
                   </>
                 )}
               </div>
             </div>
           </label>
 
-          <div className="flex justify-end my-2">
-            <Button type="submit" disabled={isUploading || selectedFiles.length === 0} className="w-full sm:w-auto px-8 h-12 text-base font-medium shadow-md hover:shadow-lg transition-all bg-teal-700 hover:bg-teal-800 disabled:opacity-70">
-              {isUploading ? (
-                <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  {uploadProgress && uploadProgress.current > 0 ? `Uploading ${uploadProgress.current}/${uploadProgress.total} documents...` : "Preparing secure upload..."}
-                </>
-              ) : (
-                <>
-                  <Upload className="h-5 w-5 mr-2" />
-                  Upload Documents
-                </>
-              )}
-            </Button>
-          </div>
-
+          {/* File list */}
           {selectedFiles.length > 0 && (
-            <div className="grid gap-3 max-h-[260px] overflow-y-auto pr-2">
+            <div className="grid gap-2 max-h-64 overflow-y-auto">
               {selectedFiles.map((file, i) => (
-                <div key={`${file.name}-${i}`} className="flex items-center gap-4 p-3 rounded-lg border border-stone-200 bg-white shadow-sm transition-all hover:border-teal-200 hover:shadow-md group">
-                  <div className="h-10 w-10 shrink-0 rounded-md bg-teal-50/50 flex items-center justify-center text-teal-600 border border-teal-100/50">
-                    <FileIcon className="h-5 w-5" />
+                <div
+                  key={`${file.name}-${i}`}
+                  className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-white shadow-sm hover:border-[#003262]/30 transition-colors group"
+                >
+                  <div className="h-9 w-9 shrink-0 rounded-lg bg-[#003262]/8 flex items-center justify-center">
+                    <FileIcon className="h-4 w-4 text-[#003262]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-stone-800 truncate">{file.name}</p>
-                    <p className="text-xs text-stone-500 font-medium">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                    <p className="text-sm font-semibold text-slate-800 truncate">{file.name}</p>
+                    <p className="text-xs text-slate-400">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                   </div>
-                  <button 
-                    type="button" 
-                    className="shrink-0 h-8 px-3 text-xs font-medium text-stone-600 bg-stone-100 hover:text-red-600 hover:bg-red-50 border border-stone-200 hover:border-red-100 rounded-md transition-all"
+                  <button
+                    type="button"
+                    className="shrink-0 h-7 w-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                     onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
                       removeFile(i);
                     }}
                   >
-                    Remove
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ))}
             </div>
           )}
 
-          <div className="flex items-center gap-2 text-sm text-stone-500 mt-2 bg-stone-50 p-3 rounded-md border border-stone-100">
-            <FileText className="h-4 w-4 shrink-0 text-teal-600" />
-            <span>Files are uploaded directly to private <strong className="font-medium text-stone-700">Supabase Storage</strong> using secure signed URLs.</span>
+          {/* Privacy note */}
+          <div className="flex items-start gap-2.5 text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-100">
+            <ShieldCheck className="h-4 w-4 shrink-0 text-[#238822] mt-0.5" />
+            <span>
+              Files are uploaded directly to private{" "}
+              <strong className="font-semibold text-slate-700">Supabase Storage</strong>{" "}
+              using secure signed URLs.
+            </span>
           </div>
+
+          {/* Submit */}
+          <Button
+            type="submit"
+            variant="secondary"
+            size="lg"
+            disabled={isUploading || selectedFiles.length === 0}
+            className="w-full"
+          >
+            {isUploading ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                {uploadProgress && uploadProgress.current > 0
+                  ? `Uploading ${uploadProgress.current}/${uploadProgress.total}…`
+                  : "Preparing secure upload…"}
+              </>
+            ) : (
+              <>
+                <Upload className="h-5 w-5" />
+                Upload &amp; Continue
+              </>
+            )}
+          </Button>
         </CardContent>
       </Card>
 
-      {error ? <p className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 shadow-sm">{error}</p> : null}
+      {error ? (
+        <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
+          <span className="shrink-0 mt-0.5">⚠</span>
+          {error}
+        </div>
+      ) : null}
     </form>
   );
 }

@@ -1,15 +1,22 @@
 import type { Metadata } from "next";
+import { Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
+
+const hanken = Hanken_Grotesk({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
+});
 
 export const metadata: Metadata = {
   title: "PrintFloww",
-  description: "Secure local print ordering workflow"
+  description: "Secure local print ordering workflow",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={hanken.className}>{children}</body>
     </html>
   );
 }
