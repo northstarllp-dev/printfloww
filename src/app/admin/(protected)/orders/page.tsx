@@ -9,6 +9,7 @@ import { desc, eq, sql, inArray, and } from "drizzle-orm";
 import Link from "next/link";
 import { transitionOrder } from "./[id]/actions";
 import { RealtimeOrders } from "@/components/realtime-orders";
+import { IndianRupee, CheckCircle2, Sparkles, ShoppingBag, Loader2 } from "lucide-react";
  
 export default async function AdminOrdersPage({
   searchParams
@@ -35,8 +36,8 @@ export default async function AdminOrdersPage({
     conditions.push(eq(orders.shopId, admin.shopId));
   }
  
-  // OPTIMIZATION: Run both queries concurrently to cut database latency in half
-  const [rows, countStats] = await Promise.all([
+  // OPTIMIZATION: Run all queries concurrently to cut database latency
+  const [rows, countStats, overallStatsResult] = await Promise.all([
     db
       .select({
         id: orders.id,
@@ -60,7 +61,16 @@ export default async function AdminOrdersPage({
       .select({ status: orders.status, count: sql<number>`cast(count(${orders.id}) as int)` })
       .from(orders)
       .where(isOwner ? undefined : eq(orders.shopId, admin.shopId || ""))
-      .groupBy(orders.status)
+      .groupBy(orders.status),
+    db
+      .select({
+        totalIncome: sql<string>`coalesce(sum(case when ${orders.status} in ('PAID', 'PRINTING', 'READY_FOR_PICKUP', 'COMPLETED') then ${orders.amount} else 0 end), '0')`,
+        completedCount: sql<number>`cast(count(case when ${orders.status} = 'COMPLETED' then 1 end) as int)`,
+        activeCount: sql<number>`cast(count(case when ${orders.status} in ('PAID', 'PRINTING', 'READY_FOR_PICKUP') then 1 end) as int)`,
+        totalCount: sql<number>`cast(count(${orders.id}) as int)`
+      })
+      .from(orders)
+      .where(isOwner ? undefined : eq(orders.shopId, admin.shopId || ""))
   ]);
 
   const counts = Object.fromEntries(
@@ -70,16 +80,103 @@ export default async function AdminOrdersPage({
   const currentCount = validStatus ? (counts[validStatus] ?? 0) : Object.values(counts).reduce((a, b) => a + b, 0);
   const totalPages = Math.max(1, Math.ceil(currentCount / pageSize));
 
+  const stats = overallStatsResult[0] || {
+    totalIncome: "0",
+    completedCount: 0,
+    activeCount: 0,
+    totalCount: 0
+  };
+
   return (
     <div className="grid gap-6">
       <RealtimeOrders />
-      <div>
-        <h1 className="text-2xl font-semibold text-stone-950">Orders</h1>
-        <p className="mt-2 text-sm text-stone-600">Review payments, manage print progress, and inspect submitted files.</p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-stone-900">Dashboard</h1>
+          <p className="mt-1 text-sm text-stone-500">Monitor your shop's performance, verify payments, and manage print workflows.</p>
+        </div>
       </div>
+
+      {/* KPI Cards Grid */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="relative overflow-hidden border-teal-100 bg-gradient-to-br from-teal-50/40 via-white to-white shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-teal-800/80 uppercase tracking-wider">Total Income</p>
+                <h3 className="mt-2 text-3xl font-bold text-stone-900">{formatCurrency(Number(stats.totalIncome))}</h3>
+              </div>
+              <div className="rounded-2xl bg-teal-100/60 p-3 text-teal-700">
+                <IndianRupee className="h-6 w-6" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-1.5 text-xs text-teal-700/80 font-medium">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Earnings from paid & completed orders</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="relative overflow-hidden border-stone-200/60 bg-white shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-stone-500 uppercase tracking-wider">Orders Completed</p>
+                <h3 className="mt-2 text-3xl font-bold text-stone-900">{stats.completedCount}</h3>
+              </div>
+              <div className="rounded-2xl bg-stone-100 p-3 text-stone-600">
+                <CheckCircle2 className="h-6 w-6" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-1.5 text-xs text-stone-500 font-medium">
+              <span>Successfully picked up / completed</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="relative overflow-hidden border-stone-200/60 bg-white shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-stone-500 uppercase tracking-wider">Active Pipeline</p>
+                <h3 className="mt-2 text-3xl font-bold text-stone-900">{stats.activeCount}</h3>
+              </div>
+              <div className="rounded-2xl bg-blue-50 p-3 text-blue-600">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-1.5 text-xs text-stone-500 font-medium">
+              <span>Paid, printing or ready for pickup</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="relative overflow-hidden border-stone-200/60 bg-white shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-stone-500 uppercase tracking-wider">Total Received</p>
+                <h3 className="mt-2 text-3xl font-bold text-stone-900">{stats.totalCount}</h3>
+              </div>
+              <div className="rounded-2xl bg-amber-50 p-3 text-amber-600">
+                <ShoppingBag className="h-6 w-6" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-1.5 text-xs text-stone-500 font-medium">
+              <span>Total orders placed at shop</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="border-t border-stone-200/60 pt-4">
+        <h2 className="text-lg font-semibold text-stone-900">Status Overview</h2>
+        <p className="text-sm text-stone-500">Filter orders by their current processing status.</p>
+      </div>
+
       <div className="grid gap-3 md:grid-cols-5">
         {adminStatuses.slice(0, 5).map((item) => (
-          <Link key={item} href={`/admin/orders?status=${item}`}>
+          <Link key={item} href={`/admin/orders?status=${item}`} scroll={false}>
             <Card className="transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-teal-900/10 hover:border-teal-200 border-stone-200/60 shadow-sm bg-white/90 backdrop-blur-sm">
               <CardContent className="p-4">
                 <p className="text-2xl font-semibold text-stone-950">{counts[item] ?? 0}</p>
@@ -95,6 +192,7 @@ export default async function AdminOrdersPage({
             <Link 
               className={`shrink-0 rounded-md px-3 sm:px-4 py-2 text-sm font-medium transition-all ${!validStatus ? 'bg-white text-teal-800 shadow-sm ring-1 ring-stone-200' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-200/50'}`} 
               href="/admin/orders"
+              scroll={false}
             >
               All Orders
             </Link>
@@ -103,6 +201,7 @@ export default async function AdminOrdersPage({
                 key={item} 
                 className={`shrink-0 rounded-md px-3 sm:px-4 py-2 text-sm font-medium transition-all ${validStatus === item ? 'bg-white text-teal-800 shadow-sm ring-1 ring-stone-200' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-200/50'}`} 
                 href={`/admin/orders?status=${item}`}
+                scroll={false}
               >
                 {statusLabels[item]}
               </Link>
@@ -225,14 +324,14 @@ export default async function AdminOrdersPage({
               </div>
               <div className="flex gap-2">
                 {pageNum > 1 ? (
-                  <Link href={`/admin/orders?${validStatus ? `status=${validStatus}&` : ""}page=${pageNum - 1}`} className="px-3 py-1.5 rounded-md hover:bg-teal-50 text-stone-600 hover:text-teal-700 transition-colors">
+                  <Link href={`/admin/orders?${validStatus ? `status=${validStatus}&` : ""}page=${pageNum - 1}`} scroll={false} className="px-3 py-1.5 rounded-md hover:bg-teal-50 text-stone-600 hover:text-teal-700 transition-colors">
                     Previous
                   </Link>
                 ) : (
                   <span className="px-3 py-1.5 text-stone-300">Previous</span>
                 )}
                 {pageNum < totalPages ? (
-                  <Link href={`/admin/orders?${validStatus ? `status=${validStatus}&` : ""}page=${pageNum + 1}`} className="px-3 py-1.5 rounded-md hover:bg-teal-50 text-stone-600 hover:text-teal-700 transition-colors">
+                  <Link href={`/admin/orders?${validStatus ? `status=${validStatus}&` : ""}page=${pageNum + 1}`} scroll={false} className="px-3 py-1.5 rounded-md hover:bg-teal-50 text-stone-600 hover:text-teal-700 transition-colors">
                     Next
                   </Link>
                 ) : (

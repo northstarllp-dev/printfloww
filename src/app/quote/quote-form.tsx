@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { formatCurrency } from "@/lib/utils";
 import { CreditCard, FileText, ChevronDown, ChevronUp } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 type Draft = {
@@ -27,6 +27,7 @@ type FileOptions = {
 
 export function QuoteForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,6 +35,13 @@ export function QuoteForm() {
   const [split, setSplit] = useState({ totalPages: 1, colorPages: 0, bwPages: 1 });
   const [optionsMap, setOptionsMap] = useState<Record<string, FileOptions>>({});
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const urlError = searchParams.get("error");
+    if (urlError === "cancelled") {
+      setError("Payment was cancelled or failed on your phone. Please try again.");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("printfloww:draft");
@@ -153,7 +161,6 @@ export function QuoteForm() {
 
       if (!response.ok) throw new Error("Could not create order. Check print options and try again.");
       const created = await response.json();
-      sessionStorage.removeItem("printfloww:draft");
 
       const initRes = await fetch("/api/payment/phonepe/initiate", {
         method: "POST",

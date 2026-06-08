@@ -84,6 +84,8 @@ export async function GET(req: NextRequest) {
             customerName: order.customerName,
             orderNumber: order.orderNumber,
             trackingToken: token,
+            shopName: shop?.name || "Print Shop",
+            amount: Number(order.amount),
           }).catch(console.error);
         }
 
@@ -133,17 +135,16 @@ export async function GET(req: NextRequest) {
         }
       }
     }
-    // Redirect user back to the tracking page regardless of outcome
-    // The tracking page will reflect the actual order status
-    return NextResponse.redirect(trackPageUrl);
+    // Redirect user back to the tracking page on success, or quote page on cancellation/failure
+    if (statusData.state === "COMPLETED") {
+      return NextResponse.redirect(trackPageUrl);
+    } else {
+      return NextResponse.redirect(`${appUrl}/quote?error=cancelled`);
+    }
   } catch (error) {
     console.error("PhonePe callback error:", error);
-    // Even on error, it's safer to send user back to the tracking page
-    const token = req.nextUrl.searchParams.get("token");
-    if (token) {
-      return NextResponse.redirect(`${getAppBaseUrl()}/track/${token}`);
-    }
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    // Even on error, it's safer to send user back to the quote page to retry
+    return NextResponse.redirect(`${getAppBaseUrl()}/quote?error=cancelled`);
   }
 }
 
