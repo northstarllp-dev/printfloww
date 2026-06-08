@@ -2,6 +2,7 @@ import { SiteShell } from "@/components/site-shell";
 import { QuoteForm } from "./quote-form";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 
 export default function QuotePage() {
   return (
@@ -20,7 +21,13 @@ export default function QuotePage() {
             Set paper size, copies, and finishing options for each file.
           </p>
         </div>
-        <QuoteForm />
+        <Suspense fallback={
+          <div className="flex justify-center py-12">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#003262] border-t-transparent" />
+          </div>
+        }>
+          <QuoteForm />
+        </Suspense>
       </div>
     </SiteShell>
   );
