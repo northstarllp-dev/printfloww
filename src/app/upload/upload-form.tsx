@@ -37,8 +37,23 @@ export function UploadForm() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setSelectedFiles(Array.from(e.target.files));
+    if (e.target.files && e.target.files.length > 0) {
+      const newFilesArray = Array.from(e.target.files);
+      setSelectedFiles((prev) => {
+        const combined = [...prev, ...newFilesArray];
+        // Deduplicate files with same name and size
+        const unique = combined.filter((file, index, self) =>
+          index === self.findIndex((f) => f.name === file.name && f.size === file.size)
+        );
+        
+        if (fileInputRef.current) {
+          const dt = new DataTransfer();
+          unique.forEach((file) => dt.items.add(file));
+          fileInputRef.current.files = dt.files;
+        }
+        
+        return unique;
+      });
     }
   };
 
@@ -46,6 +61,7 @@ export function UploadForm() {
     setSelectedFiles((prev) => {
       const newFiles = [...prev];
       newFiles.splice(index, 1);
+
       if (fileInputRef.current) {
         const dt = new DataTransfer();
         newFiles.forEach((file) => dt.items.add(file));
@@ -141,8 +157,8 @@ export function UploadForm() {
           <Field label="Phone Number">
             <Input name="phone" required pattern="[6-9][0-9]{9}" placeholder="10-digit mobile" />
           </Field>
-          <Field label="Email (optional)">
-            <Input name="email" type="email" placeholder="you@example.com" />
+          <Field label="Email (optional)" hint="We'll send your receipt here. You must show this email during pickup.">
+            <Input name="email" type="email" placeholder="you@example.com" className="bg-white" />
           </Field>
         </CardContent>
       </Card>
@@ -152,9 +168,10 @@ export function UploadForm() {
         <div className="bg-[#003262] rounded-t-xl px-5 py-3.5">
           <h2 className="font-bold text-white text-sm">Documents</h2>
         </div>
-        <CardContent className="p-4 sm:p-5 grid gap-4">
-          {/* Drop zone */}
-          <label className="relative overflow-hidden rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 hover:border-[#003262]/50 hover:bg-slate-100/60 transition-all group cursor-pointer block">
+        <CardContent className="p-4 sm:p-6 grid gap-5">
+          <label
+            className="relative overflow-hidden rounded-xl border-2 border-dashed border-stone-300 bg-stone-50/50 hover:bg-stone-50 transition-colors group cursor-pointer block"
+          >
             <input
               ref={fileInputRef}
               onChange={handleFileChange}
@@ -204,7 +221,7 @@ export function UploadForm() {
                   </div>
                   <button
                     type="button"
-                    className="shrink-0 h-7 w-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    className="shrink-0 h-8 px-3 text-xs font-medium text-stone-600 bg-stone-100 hover:text-red-600 hover:bg-red-50 border border-stone-200 hover:border-red-100 rounded-md transition-all"
                     onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();

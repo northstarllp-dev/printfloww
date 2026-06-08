@@ -8,7 +8,8 @@ import {
   pgTable,
   text,
   timestamp,
-  uuid
+  uuid,
+  bigserial
 } from "drizzle-orm/pg-core";
 
 export const orderStatusEnum = pgEnum("order_status", [
@@ -55,6 +56,8 @@ export const orders = pgTable(
     customerPhone: text("customer_phone").notNull(),
     customerEmail: text("customer_email"),
     trackingTokenHash: text("tracking_token_hash").notNull().unique(),
+    trackingTokenPrefix: text("tracking_token_prefix").notNull().default(''),
+    orderNumber: bigserial("order_number", { mode: "number" }).notNull().unique(),
     status: orderStatusEnum("status").notNull().default("QUOTE_CREATED"),
     amount: numeric("amount", { precision: 10, scale: 2 }).notNull().default("0.00"),
     quote: jsonb("quote").$type<QuoteSnapshot>().notNull(),
@@ -79,7 +82,8 @@ export const files = pgTable(
     mimeType: text("mime_type").notNull(),
     sizeBytes: integer("size_bytes").notNull(),
     pageCount: integer("page_count"),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true })
   },
   (table) => ({
     orderIdx: index("files_order_id_idx").on(table.orderId)
@@ -113,6 +117,24 @@ export const statusHistory = pgTable(
   },
   (table) => ({
     orderIdx: index("status_history_order_id_idx").on(table.orderId)
+  })
+);
+
+export const payments = pgTable(
+  "payments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderId: uuid("order_id").references(() => orders.id, { onDelete: "cascade" }).notNull(),
+    provider: text("provider").notNull(),
+    providerOrderId: text("provider_order_id"),
+    providerTransactionId: text("provider_transaction_id"),
+    amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+    status: text("status").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => ({
+    orderIdx: index("payments_order_id_idx").on(table.orderId)
   })
 );
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { orders } from "@/db/schema";
+import { orders, payments } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { hashTrackingToken } from "@/lib/tokens";
 import { createPayment } from "@/lib/phonepe";
@@ -49,6 +49,13 @@ export async function POST(req: NextRequest) {
     });
 
     if (paymentResponse?.redirectUrl) {
+      await db.insert(payments).values({
+        orderId: order.id,
+        provider: "PHONEPE",
+        providerOrderId: order.id,
+        amount: order.amount,
+        status: "PENDING"
+      });
       return NextResponse.json({ redirectUrl: paymentResponse.redirectUrl });
     } else {
       console.error("PhonePe Initiation failed: Missing redirectUrl in response", paymentResponse);

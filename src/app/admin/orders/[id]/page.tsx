@@ -51,7 +51,7 @@ export default async function AdminOrderDetailsPage({ params }: { params: Promis
   return (
     <div className="grid gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-stone-950">Order {order.id.slice(0, 8)}</h1>
+        <h1 className="text-2xl font-semibold text-stone-950">Order PF-{order.orderNumber}</h1>
         <p className="mt-2 text-sm text-stone-600">Tracking link is available only to the customer token holder.</p>
       </div>
       <div className="grid items-start gap-5 lg:grid-cols-[1fr_360px]">
@@ -64,6 +64,7 @@ export default async function AdminOrderDetailsPage({ params }: { params: Promis
               <p><strong>Email:</strong> {order.customerEmail || "Not provided"}</p>
               <p><strong>Amount:</strong> {formatCurrency(Number(order.amount))}</p>
               <p><strong>Status:</strong> {statusLabels[order.status]}</p>
+              <p className="col-span-full"><strong>Tracking Code:</strong> <span className="font-mono tracking-wider">{order.trackingTokenPrefix}</span></p>
             </CardContent>
           </Card>
 

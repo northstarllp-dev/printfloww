@@ -22,7 +22,7 @@ export function AdminNav() {
           return (
             <Link
               key={href}
-              href={href}
+              href={href as any}
               className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
                 active
                   ? "bg-white/20 text-white"
@@ -48,7 +48,7 @@ export function AdminNav() {
           return (
             <Link
               key={href}
-              href={href}
+              href={href as any}
               className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 text-[11px] font-semibold transition-colors ${
                 active ? "text-[#003262]" : "text-slate-400"
               }`}

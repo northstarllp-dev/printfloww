@@ -1,1 +1,0 @@
-CREATE INDEX "orders_shop_id_idx" ON "orders" USING btree ("shop_id");

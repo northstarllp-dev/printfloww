@@ -4,7 +4,6 @@ import { calculatePageSplit, calculateQuote } from "@/lib/quote";
 import { getDefaultShop } from "@/lib/shop";
 import { createTrackingToken, hashTrackingToken } from "@/lib/tokens";
 import { fileMetadataSchema, printOptionsSchema, customerSchema } from "@/lib/validation";
-import { sendOrderEmail } from "@/lib/email";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -23,7 +22,7 @@ export async function POST(request: Request) {
   const shop = await getDefaultShop();
   // page split is handled per-file during fileOptions insertion
   const quote = calculateQuote(parsed.data.options, shop);
-  const trackingToken = createTrackingToken();
+  const { prefix: trackingTokenPrefix, token: trackingToken } = createTrackingToken();
   const trackingTokenHash = hashTrackingToken(trackingToken);
 
   const [order] = await db
@@ -34,6 +33,7 @@ export async function POST(request: Request) {
       customerPhone: parsed.data.customer.phone,
       customerEmail: parsed.data.customer.email || null,
       trackingTokenHash,
+      trackingTokenPrefix,
       amount: quote.total.toFixed(2),
       quote,
       status: "QUOTE_CREATED"
@@ -75,12 +75,6 @@ export async function POST(request: Request) {
     fromStatus: null,
     toStatus: "QUOTE_CREATED",
     note: "Order submitted"
-  });
-
-  await sendOrderEmail({
-    to: parsed.data.customer.email,
-    subject: "PrintFloww order submitted",
-    html: `<p>Your print order has been submitted. Track it at ${process.env.NEXT_PUBLIC_APP_URL}/track/${trackingToken}</p>`
   });
 
   return NextResponse.json({

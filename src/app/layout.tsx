@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={hanken.className}>{children}</body>
+      <body className={hanken.className} suppressHydrationWarning>{children}</body>
     </html>
   );
 }

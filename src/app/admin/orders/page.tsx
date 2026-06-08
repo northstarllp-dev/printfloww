@@ -9,38 +9,20 @@ import { desc, eq, sql, inArray } from "drizzle-orm";
 import Link from "next/link";
 import { transitionOrder } from "./[id]/actions";
 import { RealtimeOrders } from "@/components/realtime-orders";
-import { Package, Clock, Printer, CheckCircle2, XCircle, ArrowRight } from "lucide-react";
-
-const statusColors: Record<string, string> = {
-  PAYMENT_VERIFICATION_PENDING: "bg-amber-50 border-amber-200 text-amber-700",
-  PAID: "bg-[#238822]/10 border-[#238822]/30 text-[#238822]",
-  PRINTING: "bg-blue-50 border-blue-200 text-blue-700",
-  READY_FOR_PICKUP: "bg-[#003262]/10 border-[#003262]/30 text-[#003262]",
-  COMPLETED: "bg-slate-100 border-slate-200 text-slate-600",
-  PAYMENT_REJECTED: "bg-red-50 border-red-200 text-red-600",
-};
-
-const statusDotColors: Record<string, string> = {
-  PAYMENT_VERIFICATION_PENDING: "bg-amber-400",
-  PAID: "bg-[#238822]",
-  PRINTING: "bg-blue-500",
-  READY_FOR_PICKUP: "bg-[#003262]",
-  COMPLETED: "bg-slate-400",
-  PAYMENT_REJECTED: "bg-red-500",
-};
 
 export default async function AdminOrdersPage({
-  searchParams,
+  searchParams
 }: {
   searchParams: Promise<{ status?: string; page?: string }>;
 }) {
   await requireAdmin();
   const { status, page } = await searchParams;
   const validStatus = adminStatuses.find((item) => item === status);
-
+  
   const pageNum = Math.max(1, parseInt(page || "1", 10));
   const pageSize = 20;
 
+  // OPTIMIZATION: Run both queries concurrently to cut database latency in half
   const [rows, countStats] = await Promise.all([
     db
       .select()
@@ -52,244 +34,176 @@ export default async function AdminOrdersPage({
     db
       .select({ status: orders.status, count: sql<number>`cast(count(${orders.id}) as int)` })
       .from(orders)
-      .groupBy(orders.status),
+      .groupBy(orders.status)
   ]);
 
   const counts = Object.fromEntries(
     adminStatuses.map((item) => [item, countStats.find((c) => c.status === item)?.count ?? 0])
   );
-
-  const currentCount = validStatus
-    ? (counts[validStatus] ?? 0)
-    : Object.values(counts).reduce((a, b) => a + b, 0);
+  
+  const currentCount = validStatus ? (counts[validStatus] ?? 0) : Object.values(counts).reduce((a, b) => a + b, 0);
   const totalPages = Math.max(1, Math.ceil(currentCount / pageSize));
 
-  // Stat chips for top
-  const pendingCount = counts["PAYMENT_VERIFICATION_PENDING"] ?? 0;
-  const printingCount = counts["PRINTING"] ?? 0;
-  const readyCount = counts["READY_FOR_PICKUP"] ?? 0;
-
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-6">
       <RealtimeOrders />
-
-      {/* Page header */}
       <div>
-        <h1 className="text-2xl font-extrabold text-slate-900">Orders</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Review payments, manage print progress, and inspect submitted files.
-        </p>
+        <h1 className="text-2xl font-semibold text-stone-950">Orders</h1>
+        <p className="mt-2 text-sm text-stone-600">Review payments, manage print progress, and inspect submitted files.</p>
       </div>
-
-      {/* Quick-glance stat chips */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-extrabold text-amber-700">{pendingCount}</p>
-          <p className="text-xs font-semibold text-amber-600 mt-0.5">Pending Review</p>
-        </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-extrabold text-blue-700">{printingCount}</p>
-          <p className="text-xs font-semibold text-blue-600 mt-0.5">Printing</p>
-        </div>
-        <div className="bg-[#003262]/10 border border-[#003262]/20 rounded-xl p-4 text-center">
-          <p className="text-2xl font-extrabold text-[#003262]">{readyCount}</p>
-          <p className="text-xs font-semibold text-[#003262]/80 mt-0.5">Ready</p>
-        </div>
+      <div className="grid gap-3 md:grid-cols-5">
+        {adminStatuses.slice(0, 5).map((item) => (
+          <Link key={item} href={`/admin/orders?status=${item}`}>
+            <Card className="transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-teal-900/10 hover:border-teal-200 border-stone-200/60 shadow-sm bg-white/90 backdrop-blur-sm">
+              <CardContent className="p-4">
+                <p className="text-2xl font-semibold text-stone-950">{counts[item] ?? 0}</p>
+                <p className="mt-1 text-xs text-stone-500 font-medium">{statusLabels[item]}</p>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
       </div>
-
-      {/* Main card with tabs + order grid */}
-      <Card className="overflow-hidden">
-        {/* Status tab bar */}
-        <div className="border-b border-slate-200 bg-slate-50/80 px-3 pt-3">
-          <nav className="flex overflow-x-auto gap-1 pb-3" aria-label="Order status filters">
-            <Link
-              className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                !validStatus
-                  ? "bg-[#003262] text-white shadow-sm"
-                  : "text-slate-500 hover:text-slate-900 hover:bg-white"
-              }`}
+      <Card className="border-stone-200/60 shadow-2xl shadow-stone-200/40 bg-white/80 backdrop-blur-sm overflow-hidden">
+        <div className="bg-stone-100/50 backdrop-blur-md border-b border-stone-200/60 p-2 sm:p-3">
+          <nav className="flex overflow-x-auto space-x-1 sm:space-x-2 pb-1" aria-label="Order status tabs">
+            <Link 
+              className={`shrink-0 rounded-md px-3 sm:px-4 py-2 text-sm font-medium transition-all ${!validStatus ? 'bg-white text-teal-800 shadow-sm ring-1 ring-stone-200' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-200/50'}`} 
               href="/admin/orders"
             >
-              All ({Object.values(counts).reduce((a, b) => a + b, 0)})
+              All Orders
             </Link>
             {adminStatuses.map((item) => (
-              <Link
-                key={item}
-                className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                  validStatus === item
-                    ? "bg-[#003262] text-white shadow-sm"
-                    : "text-slate-500 hover:text-slate-900 hover:bg-white"
-                }`}
+              <Link 
+                key={item} 
+                className={`shrink-0 rounded-md px-3 sm:px-4 py-2 text-sm font-medium transition-all ${validStatus === item ? 'bg-white text-teal-800 shadow-sm ring-1 ring-stone-200' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-200/50'}`} 
                 href={`/admin/orders?status=${item}`}
               >
-                {statusLabels[item]} ({counts[item] ?? 0})
+                {statusLabels[item]}
               </Link>
             ))}
           </nav>
         </div>
-
-        <CardContent className="p-4 sm:p-5">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <CardContent className="p-5 bg-stone-50/30">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {rows.length > 0 ? (
               rows.map((order) => (
-                <Card
-                  key={order.id}
-                  className="relative overflow-hidden border-slate-200 flex flex-col hover:border-[#003262]/30 hover:shadow-md transition-all group"
-                >
-                  <Link
-                    href={`/admin/orders/${order.id}`}
-                    className="absolute inset-0 z-0"
-                    aria-label={`View order ${order.id}`}
-                  />
-
-                  {/* Card header */}
-                  <div className="px-4 pt-4 pb-3 flex items-start justify-between gap-2 z-10 pointer-events-none">
-                    <div>
-                      <p className="text-xs font-bold text-[#003262] font-mono">
-                        #{order.id.slice(0, 8)}
-                      </p>
-                      <p className="font-bold text-slate-900 mt-0.5 text-sm">{order.customerName}</p>
-                    </div>
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold shrink-0 ${
-                        statusColors[order.status] ?? "bg-slate-100 border-slate-200 text-slate-600"
-                      }`}
-                    >
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          statusDotColors[order.status] ?? "bg-slate-400"
-                        }`}
-                      />
-                      {statusLabels[order.status]}
-                    </span>
-                  </div>
-
-                  {/* Amount highlight */}
-                  <div className="mx-4 mb-3 bg-[#003262]/5 border border-[#003262]/10 rounded-lg px-3 py-2 z-10 pointer-events-none">
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Amount</p>
-                    <p className="text-lg font-extrabold text-[#003262]">
-                      {formatCurrency(Number(order.amount))}
-                    </p>
-                  </div>
-
-                  {/* Details */}
-                  <CardContent className="px-4 pb-3 pt-0 grid gap-1 z-10 pointer-events-none flex-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-400">Phone</span>
-                      <span className="font-semibold text-slate-700">{order.customerPhone}</span>
-                    </div>
-                    {order.customerEmail && (
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-400">Email</span>
-                        <span className="font-semibold text-slate-700 truncate max-w-[140px]" title={order.customerEmail}>
-                          {order.customerEmail}
-                        </span>
+                <Card key={order.id} className="relative overflow-hidden border-stone-200/60 shadow-sm shadow-stone-200/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-teal-900/10 hover:border-teal-300 bg-white/95 flex flex-col group">
+                  <Link href={`/admin/orders/${order.id}`} className="absolute inset-0 z-0" aria-label={`View order ${order.id}`} />
+                  <CardHeader className="pb-3 z-10 pointer-events-none bg-gradient-to-b from-stone-50/50 to-transparent">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-base text-teal-700 group-hover:text-teal-600 transition-colors">PF-{order.orderNumber}</CardTitle>
+                        <CardDescription className="mt-1 font-medium text-stone-900">{order.customerName}</CardDescription>
                       </div>
-                    )}
-                    <p className="text-[10px] text-slate-400 mt-1 pt-2 border-t border-slate-100 border-dashed">
-                      {order.createdAt.toLocaleString("en-IN")}
+                      <span className="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-[10px] font-bold text-stone-700 uppercase tracking-wider border border-stone-200/50 shadow-sm">
+                        {statusLabels[order.status]}
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="text-sm grid gap-2 z-10 pointer-events-none flex-1">
+                    <div className="rounded-md bg-teal-50/50 p-2.5 border border-teal-100/50 mb-1">
+                      <p className="text-stone-600 flex items-center justify-between">
+                        <span className="text-stone-500 font-medium text-xs uppercase tracking-wider">Exact Amount</span> 
+                        <span className="font-bold text-teal-800 text-base">{formatCurrency(Number(order.amount))}</span>
+                      </p>
+                    </div>
+                    <p className="text-stone-600 flex items-center justify-between">
+                      <span className="text-stone-400">Tracking Code</span> 
+                      <span className="font-mono font-medium text-stone-800 tracking-wider">{order.trackingTokenPrefix}</span>
+                    </p>
+                    <p className="text-stone-600 flex items-center justify-between">
+                      <span className="text-stone-400">Phone</span> 
+                      <span className="font-medium text-stone-800">{order.customerPhone}</span>
+                    </p>
+                    <p className="text-stone-600 flex items-center justify-between">
+                      <span className="text-stone-400">Email</span> 
+                      <span className="font-medium text-stone-800 truncate max-w-[140px]" title={order.customerEmail ?? undefined}>{order.customerEmail}</span>
+                    </p>
+                    <p className="text-xs text-stone-400 mt-2 pt-2 border-t border-stone-100 border-dashed">
+                      Placed: {order.createdAt.toLocaleString("en-IN")}
                     </p>
                   </CardContent>
-
-                  {/* Action buttons */}
                   {order.status !== "COMPLETED" && order.status !== "PAYMENT_REJECTED" && (
-                    <CardFooter className="z-10 bg-slate-50 border-t border-slate-100 p-3 gap-2">
+                    <CardFooter className="z-10 bg-stone-50/50 border-t border-stone-100 p-3 flex gap-2">
                       {order.status === "PAYMENT_VERIFICATION_PENDING" && (
                         <>
                           <form action={transitionOrder} className="flex-1">
                             <input type="hidden" name="orderId" value={order.id} />
                             <input type="hidden" name="toStatus" value="PAID" />
-                            <Button type="submit" variant="secondary" size="sm" className="w-full">
-                              Approve
-                            </Button>
+                            <Button type="submit" className="w-full min-h-8 h-auto py-1.5 text-xs bg-teal-700 hover:bg-teal-800 text-white shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5 text-wrap leading-tight">Approve Payment</Button>
                           </form>
                           <form action={transitionOrder} className="flex-1">
                             <input type="hidden" name="orderId" value={order.id} />
                             <input type="hidden" name="toStatus" value="PAYMENT_REJECTED" />
-                            <Button type="submit" variant="destructive" size="sm" className="w-full">
-                              Reject
-                            </Button>
+                            <Button type="submit" className="w-full min-h-8 h-auto py-1.5 text-xs bg-transparent border border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 transition-all hover:-translate-y-0.5 shadow-sm text-wrap leading-tight">Reject</Button>
                           </form>
                         </>
                       )}
                       {order.status === "PAID" && (
-                        <form action={transitionOrder} className="w-full">
-                          <input type="hidden" name="orderId" value={order.id} />
-                          <input type="hidden" name="toStatus" value="PRINTING" />
-                          <Button type="submit" variant="primary" size="sm" className="w-full">
-                            <Printer className="h-3.5 w-3.5" />
-                            Mark Printing
-                          </Button>
-                        </form>
+                        <>
+                          <form action={transitionOrder} className="flex-1">
+                            <input type="hidden" name="orderId" value={order.id} />
+                            <input type="hidden" name="toStatus" value="PRINTING" />
+                            <Button type="submit" className="w-full min-h-8 h-auto py-1.5 text-xs bg-stone-800 hover:bg-stone-900 text-white shadow-sm transition-all hover:-translate-y-0.5 text-wrap leading-tight">Start Printing</Button>
+                          </form>
+                          <Link href={`/admin/orders/${order.id}`} className="flex-1">
+                            <Button variant="outline" className="w-full min-h-8 h-full py-1.5 text-xs text-stone-700 hover:bg-stone-100 hover:text-stone-900 bg-white border-stone-200 shadow-sm transition-all text-wrap leading-tight">Order details</Button>
+                          </Link>
+                        </>
                       )}
                       {order.status === "PRINTING" && (
-                        <form action={transitionOrder} className="w-full">
-                          <input type="hidden" name="orderId" value={order.id} />
-                          <input type="hidden" name="toStatus" value="READY_FOR_PICKUP" />
-                          <Button type="submit" variant="primary" size="sm" className="w-full">
-                            <Package className="h-3.5 w-3.5" />
-                            Mark Ready
-                          </Button>
-                        </form>
+                        <>
+                          <form action={transitionOrder} className="flex-1">
+                            <input type="hidden" name="orderId" value={order.id} />
+                            <input type="hidden" name="toStatus" value="READY_FOR_PICKUP" />
+                            <Button type="submit" className="w-full min-h-8 h-auto py-1.5 text-[11px] font-bold bg-stone-800 hover:bg-stone-900 text-white shadow-sm transition-all hover:-translate-y-0.5 text-wrap leading-tight">Ready for Pickup</Button>
+                          </form>
+                          <Link href={`/admin/orders/${order.id}`} className="flex-1">
+                            <Button variant="outline" className="w-full min-h-8 h-full py-1.5 text-xs text-stone-700 hover:bg-stone-100 hover:text-stone-900 bg-white border-stone-200 shadow-sm transition-all text-wrap leading-tight">Order details</Button>
+                          </Link>
+                        </>
                       )}
                       {order.status === "READY_FOR_PICKUP" && (
-                        <form action={transitionOrder} className="w-full">
-                          <input type="hidden" name="orderId" value={order.id} />
-                          <input type="hidden" name="toStatus" value="COMPLETED" />
-                          <Button type="submit" variant="secondary" size="sm" className="w-full">
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            Complete
-                          </Button>
-                        </form>
+                        <>
+                          <form action={transitionOrder} className="flex-1">
+                            <input type="hidden" name="orderId" value={order.id} />
+                            <input type="hidden" name="toStatus" value="COMPLETED" />
+                            <Button type="submit" className="w-full min-h-8 h-auto py-1.5 text-xs bg-teal-700 hover:bg-teal-800 text-white shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5 text-wrap leading-tight">Complete Order</Button>
+                          </form>
+                          <Link href={`/admin/orders/${order.id}`} className="flex-1">
+                            <Button variant="outline" className="w-full min-h-8 h-full py-1.5 text-xs text-stone-700 hover:bg-stone-100 hover:text-stone-900 bg-white border-stone-200 shadow-sm transition-all text-wrap leading-tight">Order details</Button>
+                          </Link>
+                        </>
                       )}
                     </CardFooter>
-                  )}
-
-                  {/* Completed state footer */}
-                  {(order.status === "COMPLETED" || order.status === "PAYMENT_REJECTED") && (
-                    <div className="z-10 bg-slate-50 border-t border-slate-100 px-4 py-2.5 flex items-center justify-end">
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400">
-                        View details <ArrowRight className="h-3 w-3" />
-                      </span>
-                    </div>
                   )}
                 </Card>
               ))
             ) : (
-              <div className="col-span-full py-16 text-center text-slate-400">
-                <Package className="h-10 w-10 mx-auto mb-3 text-slate-300" />
-                <p className="font-semibold">No orders found</p>
-                <p className="text-sm mt-1">Orders will appear here once customers place them.</p>
+              <div className="col-span-full py-16 text-center text-stone-500 bg-white/60 rounded-xl border-2 border-stone-200 border-dashed backdrop-blur-sm">
+                No orders found.
               </div>
             )}
           </div>
-
-          {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-slate-200 mt-5 pt-4 text-sm font-medium text-slate-600">
-              <span>
+            <div className="flex items-center justify-between border-t border-stone-200 mt-6 pt-5 px-2 text-sm text-stone-600 font-medium">
+              <div>
                 Page {pageNum} of {totalPages}
-              </span>
+              </div>
               <div className="flex gap-2">
                 {pageNum > 1 ? (
-                  <Link
-                    href={`/admin/orders?${validStatus ? `status=${validStatus}&` : ""}page=${pageNum - 1}`}
-                    className="px-3 py-1.5 rounded-lg hover:bg-[#003262]/5 text-slate-600 hover:text-[#003262] transition-colors"
-                  >
+                  <Link href={`/admin/orders?${validStatus ? `status=${validStatus}&` : ""}page=${pageNum - 1}`} className="px-3 py-1.5 rounded-md hover:bg-teal-50 text-stone-600 hover:text-teal-700 transition-colors">
                     Previous
                   </Link>
                 ) : (
-                  <span className="px-3 py-1.5 text-slate-300">Previous</span>
+                  <span className="px-3 py-1.5 text-stone-300">Previous</span>
                 )}
                 {pageNum < totalPages ? (
-                  <Link
-                    href={`/admin/orders?${validStatus ? `status=${validStatus}&` : ""}page=${pageNum + 1}`}
-                    className="px-3 py-1.5 rounded-lg hover:bg-[#003262]/5 text-slate-600 hover:text-[#003262] transition-colors"
-                  >
+                  <Link href={`/admin/orders?${validStatus ? `status=${validStatus}&` : ""}page=${pageNum + 1}`} className="px-3 py-1.5 rounded-md hover:bg-teal-50 text-stone-600 hover:text-teal-700 transition-colors">
                     Next
                   </Link>
                 ) : (
-                  <span className="px-3 py-1.5 text-slate-300">Next</span>
+                  <span className="px-3 py-1.5 text-stone-300">Next</span>
                 )}
               </div>
             </div>

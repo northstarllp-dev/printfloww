@@ -30,26 +30,25 @@ export function SiteShell({
               className="h-8 w-auto object-contain"
             />
           </Link>
-          {!hideNav && (
-            <nav className="hidden sm:flex items-center gap-1">
-              {navItems.map(({ href, label }) => {
-                const active = pathname === href;
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                      active
-                        ? "bg-[#003262] text-white"
-                        : "text-slate-600 hover:text-[#003262] hover:bg-slate-100"
-                    }`}
-                  >
-                    {label}
-                  </Link>
-                );
-              })}
-            </nav>
-          )}
+          {!hideNav && <div className="hidden sm:flex items-center gap-1">
+                  {navItems.map(({ href, label }) => {
+                    const active = pathname.startsWith(href);
+                    return (
+                      <Link
+                        key={href}
+                        href={href as any}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                          active
+                            ? "bg-[#003262] text-white"
+                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                        }`}
+                      >
+                        {label}
+                      </Link>
+                    );
+                  })}
+                </div>
+          }
         </div>
       </header>
 
@@ -64,13 +63,13 @@ export function SiteShell({
 
       {/* Mobile bottom nav — only when nav is not hidden */}
       {!hideNav && (
-        <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200/80 flex items-stretch safe-area-inset-bottom">
+        <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200/80 flex items-stretch">
           {navItems.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href;
+            const active = pathname.startsWith(href);
             return (
               <Link
                 key={href}
-                href={href}
+                href={href as any}
                 className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 text-[11px] font-semibold transition-colors ${
                   active ? "text-[#003262]" : "text-slate-400"
                 }`}

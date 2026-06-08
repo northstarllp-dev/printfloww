@@ -17,25 +17,35 @@ export function RealtimeOrders({
 
   useEffect(() => {
     if (strategy === "polling") {
-      // Safe HTTP short-polling for public/anonymous pages to avoid RLS security risks
       const intervalId = setInterval(() => {
         router.refresh();
       }, intervalMs);
       return () => clearInterval(intervalId);
     }
 
-    // WebSocket real-time for authenticated admins
     const supabase = createSupabaseBrowserClient();
+
+    // Admin dashboard: Listen to all orders via secure Postgres Changes
+    if (!orderId) {
+      const channel = supabase
+        .channel("realtime-orders-all")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "orders" },
+          () => router.refresh()
+        )
+        .subscribe();
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+
+    // Public Tracking Page: Listen to specific order via unguessable UUID Broadcast channel
     const channel = supabase
-      .channel(orderId ? `realtime-order-${orderId}` : "realtime-orders-all")
+      .channel(`realtime-order-${orderId}`)
       .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "orders",
-          filter: orderId ? `id=eq.${orderId}` : undefined,
-        },
+        "broadcast",
+        { event: "status_update" },
         () => {
           router.refresh();
         }
